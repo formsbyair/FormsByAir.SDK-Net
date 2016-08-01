@@ -1,4 +1,4 @@
-﻿using FormsByAir.SDK.Model;
+using FormsByAir.SDK.Model;
 using RestSharp;
 using System;
 using System.Collections.Generic;
@@ -139,7 +139,7 @@ namespace FormsByAir.SDK
             {
                 throw new Exception(response.ErrorException.Message);
             }
-            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            if (response.StatusCode != System.Net.HttpStatusCode.Created)
             {
                 throw new Exception(response.StatusDescription);
             }
