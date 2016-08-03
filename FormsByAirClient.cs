@@ -36,6 +36,25 @@ namespace FormsByAir.SDK
             }
         }
 
+        public void LogDeliveryException(string documentDeliveryId, string message, string stackTrace)
+        {
+            var request = new RestRequest("api/v1/documents/deliveries/exceptions", Method.POST);
+            request.AddHeader("Authorization", "Bearer " + ApiKey);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddJsonBody(new DeliveryException { DocumentDeliveryId = documentDeliveryId, Message = message, StackTrace = stackTrace });
+
+            var response = client.Execute(request);
+
+            if (response.ErrorException != null)
+            {
+                throw new Exception(response.ErrorException.Message);
+            }
+            if (response.StatusCode != System.Net.HttpStatusCode.Created)
+            {
+                throw new Exception(response.StatusDescription);
+            }
+        }
+
         public Schema GetDocument(string documentId)
         {
             var request = new RestRequest("api/v1/documents/{id}", Method.GET);
