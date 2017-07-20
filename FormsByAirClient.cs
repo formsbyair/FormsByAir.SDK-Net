@@ -1,7 +1,8 @@
-using FormsByAir.SDK.Model;
+﻿using FormsByAir.SDK.Model;
 using RestSharp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace FormsByAir.SDK
 {
@@ -15,6 +16,7 @@ namespace FormsByAir.SDK
         {
             ApiKey = apiKey;
             client = new RestClient(EndPoint);
+            client.UserAgent = "FormsByAir Connect";
         }
 
         public void SetDelivered(string documentDeliveryId)
@@ -77,14 +79,81 @@ namespace FormsByAir.SDK
                 throw new Exception(response.StatusDescription);
             }
 
+            response.Data.Schema.Form.SetParent();
             return response.Data.Schema;
         }
 
-        public byte[] GetFileDelivery(string documentDeliveryId)
+        public List<Document> GetDocuments(string documentStatusId = null, string formId = null, int? currentPage = null, int? itemsPerPage = null)
+        {
+            var request = new RestRequest("api/v1/documents", Method.GET);
+            request.AddHeader("Authorization", "Bearer " + ApiKey);
+            request.AddHeader("Content-Type", "application/json");
+
+            if (!string.IsNullOrEmpty(documentStatusId))
+            {
+                request.AddQueryParameter("documentStatusId", documentStatusId);
+            }
+            if (!string.IsNullOrEmpty(formId))
+            {
+                request.AddQueryParameter("formId", formId);
+            }
+            if (currentPage.HasValue)
+            {
+                request.AddQueryParameter("currentPage", currentPage.Value.ToString());
+            }
+            if (itemsPerPage.HasValue)
+            {
+                request.AddQueryParameter("itemsPerPage", itemsPerPage.Value.ToString());
+            }
+
+            var response = client.Execute<List<Document>>(request);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+            if (response.ErrorException != null)
+            {
+                throw new Exception(response.ErrorException.Message);
+            }
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception(response.StatusDescription);
+            }
+
+            return response.Data;
+        }
+
+        public Entity GetSubscriptionMap(string subscriptionId)
+        {
+            var request = new RestRequest("api/v1/subscriptions/{id}/map", Method.GET);
+            request.AddHeader("Authorization", "Bearer " + ApiKey);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddUrlSegment("id", subscriptionId);
+
+            var response = client.Execute<Entity>(request);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+            if (response.ErrorException != null)
+            {
+                throw new Exception(response.ErrorException.Message);
+            }
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception(response.StatusDescription);
+            }
+
+            return response.Data;
+        }
+
+        public FileDelivery GetFile(DocumentDelivery documentDelivery)
         {
             var request = new RestRequest("documents/deliveries/{id}", Method.GET);
             request.AddHeader("Authorization", "Bearer " + ApiKey);
-            request.AddUrlSegment("id", documentDeliveryId);
+            request.AddUrlSegment("id", documentDelivery.DocumentDeliveryId);
 
             var response = client.Execute(request);
 
@@ -97,17 +166,24 @@ namespace FormsByAir.SDK
                 throw new Exception(response.StatusDescription);
             }
 
-            return response.RawBytes;
+            var contentDisposition = response.Headers.SingleOrDefault(a => a.Name == "Content-Disposition").Value.ToString().Split(';');
+            var filename = contentDisposition.Single(a => a.Contains("filename=")).Replace("filename=", "").Replace("\"", "").Trim();
+
+            var fileDelivery = new FileDelivery();
+            fileDelivery.FileName = filename;
+            fileDelivery.File = response.RawBytes;
+            fileDelivery.FilePath = documentDelivery.Subscription.FilePath;
+            return fileDelivery;
         }
 
-        public DocumentDelivery GetFileDeliveryForDocument(string documentId)
+        public List<DocumentDelivery> GetFileDeliveriesForDocument(string documentId)
         {
-            var request = new RestRequest("api/v1/documents/{id}/deliveries/file", Method.GET);
+            var request = new RestRequest("api/v1/documents/{id}/deliveries/files", Method.GET);
             request.AddHeader("Authorization", "Bearer " + ApiKey);
             request.AddHeader("Content-Type", "application/json");
             request.AddUrlSegment("id", documentId);
 
-            var response = client.Execute<DocumentDelivery>(request);
+            var response = client.Execute<List<DocumentDelivery>>(request);
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
