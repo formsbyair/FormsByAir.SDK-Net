@@ -12,16 +12,35 @@ namespace FormsByAir.SDK
         private string EndPoint = "https://formsbyair.com";
         private RestClient client;
 
-        public FormsByAirClient(string apiKey)
+        public FormsByAirClient(string apiKey, string endPoint = null)
         {
             ApiKey = apiKey;
-            client = new RestClient(EndPoint);
+            client = new RestClient(endPoint ?? EndPoint);
             client.UserAgent = "FormsByAir Connect";
         }
 
         public void SetDelivered(string documentDeliveryId)
         {
             var request = new RestRequest("api/v1/documents/deliveries/{id}/delivered", Method.PUT);
+            request.AddHeader("Authorization", "Bearer " + ApiKey);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddUrlSegment("id", documentDeliveryId);
+
+            var response = client.Execute(request);
+
+            if (response.ErrorException != null)
+            {
+                throw new Exception(response.ErrorException.Message);
+            }
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception(response.StatusDescription);
+            }
+        }
+
+        public void Redeliver(string documentDeliveryId)
+        {
+            var request = new RestRequest("api/v1/documents/deliveries/{id}/redeliver", Method.PUT);
             request.AddHeader("Authorization", "Bearer " + ApiKey);
             request.AddHeader("Content-Type", "application/json");
             request.AddUrlSegment("id", documentDeliveryId);
@@ -52,6 +71,26 @@ namespace FormsByAir.SDK
                 throw new Exception(response.ErrorException.Message);
             }
             if (response.StatusCode != System.Net.HttpStatusCode.Created)
+            {
+                throw new Exception(response.StatusDescription);
+            }
+        }
+
+        public void UpdateWorkflowStatus(string documentId, string workflowStatusId)
+        {
+            var request = new RestRequest("api/v1/documents/{id}/workflowstatus", Method.PUT);
+            request.AddHeader("Authorization", "Bearer " + ApiKey);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddUrlSegment("id", documentId);
+            request.AddJsonBody(new Document { WorkflowStatusId = workflowStatusId });
+
+            var response = client.Execute(request);
+
+            if (response.ErrorException != null)
+            {
+                throw new Exception(response.ErrorException.Message);
+            }
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 throw new Exception(response.StatusDescription);
             }

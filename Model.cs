@@ -7,6 +7,7 @@ namespace FormsByAir.SDK.Model
     {
         public string Tag { get; set; }
         public string Data { get; set; }
+        public List<TagData> Tags { get; set; }
     }
 
     public class DeliveryException
@@ -21,6 +22,7 @@ namespace FormsByAir.SDK.Model
         public string FormId { get; set; }
         public List<TagData> Prefill { get; set; }
         public bool Submit { get; set; }
+        public int? Version { get; set; }
     }
 
     public class DocumentRequestResponse
@@ -74,6 +76,7 @@ namespace FormsByAir.SDK.Model
         public string Style { get; set; }
         public string ValidationScript { get; set; }
         public string TrackingScript { get; set; }
+        public string TrackingLabel { get; set; }
         public string DocumentReference { get; set; }
         public bool BlockSave { get; set; }
         public bool BlockSaveCookie { get; set; }
@@ -81,8 +84,10 @@ namespace FormsByAir.SDK.Model
         public bool HideRestart { get; set; }
         public bool HideTitle { get; set; }
         public string ConfirmationMessage { get; set; }
+        public string DocumentNotFoundMessage { get; set; }
         public string ClosedMessage { get; set; }
         public bool SaveCompletedSections { get; set; }
+        public bool SaveDocumentDeliveryId { get; set; }
     }
 
     public class Element
@@ -117,7 +122,7 @@ namespace FormsByAir.SDK.Model
         public string ValidationMethod { get; set; }
         public string ValidationMessage { get; set; }
         public bool ValidationInline { get; set; }
-        public string ConfirmationMessage { get; set; }        
+        public string ConfirmationMessage { get; set; }
         public string TableId { get; set; }
         public string Audit { get; set; }
         public string ListType { get; set; }
@@ -129,9 +134,17 @@ namespace FormsByAir.SDK.Model
         public string Decimals { get; set; }
         public string LinkedRepeater { get; set; }
         public bool Inline { get; set; }
-        public bool PostSubmit { get; set; }
+        public bool PostSubmit { get; set; }    //deprecated
         public string Width { get; set; }
         public bool AttachResponse { get; set; }
+        public string Country { get; set; }
+        public string Sort { get; set; }
+        public string CssClass { get; set; }
+        public bool CanDuplicate { get; set; }
+        public bool CanSubmitPartial { get; set; }
+        public string ArrayExpression { get; set; }
+        public string DisplayProperty { get; set; }
+        public string DocumentDeliveryId { get; set; }
     }
 
     public enum ElementType
@@ -140,13 +153,16 @@ namespace FormsByAir.SDK.Model
         Group = 1,
         Condition = 3,
         Workflow = 4,
-        Section = 5
+        Section = 5,
+        ValidationService = 6,
+        Request = 7
     }
 
     public class Enumeration
     {
         public string Value { get; set; }
         public string Name { get; set; }
+        public string Note { get; set; }
     }
 
     public class SimpleType
@@ -170,11 +186,13 @@ namespace FormsByAir.SDK.Model
         public string EntityName { get; set; }
         public string Filter { get; set; }
         public string ForEach { get; set; }
+        public List<Attribute> Attributes { get; set; }
     }
 
     public class Entity
     {
         public string Id { get; set; }
+        public string Getter { get; set; }
         public string Name { get; set; }
         public string ForEach { get; set; }
         public string Filter { get; set; }
