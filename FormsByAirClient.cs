@@ -34,7 +34,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
         }
 
@@ -53,7 +53,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
         }
 
@@ -72,7 +72,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.Created)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
         }
 
@@ -92,7 +92,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
         }
 
@@ -115,11 +115,35 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
 
             response.Data.Schema.Form.SetParent();
             return response.Data.Schema;
+        }
+
+        public void DeleteDocument(string documentId, string comment = null)
+        {
+            var request = new RestRequest("api/v1/documents/{id}", Method.DELETE);
+            request.AddHeader("Authorization", "Bearer " + ApiKey);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddUrlSegment("id", documentId);
+
+            if (!string.IsNullOrEmpty(comment))
+            {
+                request.AddQueryParameter("comment", comment);
+            }
+
+            var response = client.Execute<DocumentResponse>(request);
+           
+            if (response.ErrorException != null)
+            {
+                throw new Exception(response.ErrorException.Message);
+            }
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
+            }
         }
 
         public List<Document> GetDocuments(string documentStatusId = null, string formId = null, int? currentPage = null, int? itemsPerPage = null)
@@ -157,7 +181,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
 
             return response.Data;
@@ -182,7 +206,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
 
             return response.Data;
@@ -202,7 +226,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
 
             var contentDisposition = response.Headers.SingleOrDefault(a => a.Name == "Content-Disposition").Value.ToString().Split(';');
@@ -234,7 +258,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
 
             return response.Data;
@@ -254,7 +278,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
 
             return response.Data;
@@ -275,7 +299,7 @@ namespace FormsByAir.SDK
             }
             if (response.StatusCode != System.Net.HttpStatusCode.Created)
             {
-                throw new Exception(response.StatusDescription);
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
             }
 
             return response.Data.DocumentId;
