@@ -156,6 +156,7 @@ namespace FormsByAir.SDK.Model
         public string FilenameFormat { get; set; }        
         public JToken Token { get; set; }
         public string SectionValidationData { get; set; }
+        public string Autocomplete { get; set; }
     }
 
     public enum ElementType

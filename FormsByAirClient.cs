@@ -212,11 +212,12 @@ namespace FormsByAir.SDK
             return response.Data;
         }
 
-        public FileDelivery GetFile(DocumentDelivery documentDelivery)
+        public FileDelivery GetFile(DocumentDelivery documentDelivery, bool attachments = true)
         {
             var request = new RestRequest("documents/deliveries/{id}", Method.GET);
             request.AddHeader("Authorization", "Bearer " + ApiKey);
             request.AddUrlSegment("id", documentDelivery.DocumentDeliveryId);
+            request.AddQueryParameter("attachments", attachments.ToString());
 
             var response = client.Execute(request);
 
