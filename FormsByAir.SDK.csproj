@@ -53,6 +53,9 @@
     <None Include="FormsByAir.SDK.nuspec" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="formsbyair.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="pack.txt" />
   </ItemGroup>
   <ItemGroup>

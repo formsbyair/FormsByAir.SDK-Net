@@ -1,0 +1,2 @@
+﻿Download latest nuget.exe from https://www.nuget.org/downloads to project folder
+nuget pack -Properties Configuration=Release

@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>FormsByAir.SDK</id>
+    <version>1.0.10</version>
+    <title>FormsByAir SDK</title>
+    <authors>FormsByAir</authors>
+    <projectUrl>https://formsbyair.com</projectUrl>
+    <icon>formsbyair.png</icon>
+    <license type="expression">MIT</license>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>C# client library for FormsByAir API</description>
+    <copyright>FormsByAir 2021</copyright>
+  </metadata>
+  <files>
+    <file src="formsbyair.png" />
+  </files>
+</package>
