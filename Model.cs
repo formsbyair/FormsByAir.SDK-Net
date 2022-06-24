@@ -69,12 +69,14 @@ namespace FormsByAir.SDK.Model
 
     public class Schema
     {
-        public Element Form { get; set; }
+        public Element Form { get; set; }        
         public List<SimpleType> SimpleTypes { get; set; }
         public List<ComplexType> ComplexTypes { get; set; }
         public string FormId { get; set; }
         public int Version { get; set; }
         public string Style { get; set; }
+        public string Header { get; set; }
+        public string Footer { get; set; }
         public string ValidationScript { get; set; }
         public string TrackingScript { get; set; }
         public string TrackingLabel { get; set; }
@@ -82,18 +84,23 @@ namespace FormsByAir.SDK.Model
         public bool BlockSave { get; set; }
         public bool BlockSaveCookie { get; set; }
         public bool HideNavFirstSection { get; set; }
-        public bool HideRestart { get; set; }
+        public bool HideRestart { get; set; }        
         public bool HideFormAfterSubmit { get; set; }
         public bool HideTitle { get; set; }
         public string ConfirmationMessage { get; set; }
         public string SubmitUrl { get; set; }
+        public string ReturnUrl { get; set; }
         public string DocumentNotFoundMessage { get; set; }
-        public string ClosedMessage { get; set; }        
+        public string ClosedMessage { get; set; }
         public bool SaveCompletedSections { get; set; }
         public bool SaveDocumentDeliveryId { get; set; }
+        public bool SaveRequestDocumentId { get; set; }
         public bool SaveRequestCompleted { get; set; }
-        public bool BlockSubmitOnEnter { get; set; }
+        public bool BlockSubmitOnEnter { get; set; }        
         public bool AutoSaveSections { get; set; }
+        public bool SaveSectionValidationData { get; set; }
+        public int? DocumentVersion { get; set; }
+        public bool AutoGenerateMissingTags { get; set; }
     }
 
     public class Element
@@ -133,7 +140,8 @@ namespace FormsByAir.SDK.Model
         public string TableId { get; set; }
         public string Audit { get; set; }
         public string ListType { get; set; }        
-        public Element Parent { get; set; }
+        public Element Parent { get; set; }        
+        public Element LinkedRepeaterParent { get; set; }
         public string Format { get; set; }
         public string Min { get; set; }
         public string Max { get; set; }
@@ -156,7 +164,13 @@ namespace FormsByAir.SDK.Model
         public string FilenameFormat { get; set; }        
         public JToken Token { get; set; }
         public string SectionValidationData { get; set; }
+        public string SectionValidationMessage { get; set; }
+        public string SectionValidationReference { get; set; }
+        public string SectionValidationDateTime { get; set; }
         public string Autocomplete { get; set; }
+        public string Filter { get; set; }
+        public bool DeferValidation { get; set; }
+        public int? TryCount { get; set; }
     }
 
     public enum ElementType

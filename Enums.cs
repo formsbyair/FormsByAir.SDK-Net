@@ -1,7 +1,7 @@
 ﻿namespace FormsByAir.SDK.Model
 {
     public static class Enums
-    {        
+    {
         public static class FormStatus
         {
             public static string Draft { get { return "4e72b3d0-8205-4fd8-8965-8d76292bedd5"; } }
@@ -16,6 +16,8 @@
             public static string Uat { get { return "4e599e7a-16b2-4e36-b407-2632086fb2e6"; } }
             public static string Archived { get { return "ce0546b8-cbfb-4332-a56a-e84f7f6b3a0c"; } }
             public static string Authentication { get { return "e98697b9-d37b-4820-8b8c-2fcf2961ea14"; } }
+            public static string Ticket { get { return "04c64408-17a3-476b-8e0e-174d29614728"; } }
+            public static string Demo { get { return "19e01f29-b0ae-4a5d-8aaf-edbb4e9af6cc"; } }
         }
 
         public static class DocumentStatus

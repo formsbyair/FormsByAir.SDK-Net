@@ -38,6 +38,25 @@ namespace FormsByAir.SDK
             }
         }
 
+        public void RedeliverDocument(string documentId)
+        {
+            var request = new RestRequest("api/v1/documents/{id}/redeliver", Method.PUT);
+            request.AddHeader("Authorization", "Bearer " + ApiKey);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddUrlSegment("id", documentId);
+
+            var response = client.Execute(request);
+
+            if (response.ErrorException != null)
+            {
+                throw new Exception(response.ErrorException.Message);
+            }
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
+            }
+        }
+
         public void Redeliver(string documentDeliveryId)
         {
             var request = new RestRequest("api/v1/documents/deliveries/{id}/redeliver", Method.PUT);

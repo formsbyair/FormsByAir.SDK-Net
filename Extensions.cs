@@ -97,7 +97,7 @@ namespace FormsByAir.SDK.Model
 
         public static string Value(this Entity entity, string name)
         {
-            var attribute = entity.Attributes.FirstOrDefault(a => a.Name == name);
+            var attribute = entity.Attributes?.FirstOrDefault(a => a.Name == name);
             if (attribute != null)
             {
                 return attribute.Value;
@@ -107,12 +107,12 @@ namespace FormsByAir.SDK.Model
 
         public static Attribute GetAttribute(this Attribute attribute, string name)
         {
-            return attribute.Attributes.FirstOrDefault(a => a.Name == name);
+            return attribute.Attributes?.FirstOrDefault(a => a.Name == name);
         }
 
         public static Attribute GetAttribute(this Entity entity, string name)
         {
-            return entity.Attributes.FirstOrDefault(a => a.Name == name);
+            return entity.Attributes?.FirstOrDefault(a => a.Name == name);
         }
 
         public static List<Attribute> GetAttributes(this Entity entity, string name)
@@ -122,7 +122,7 @@ namespace FormsByAir.SDK.Model
 
         public static Entity GetEntity(this Entity entity, string name)
         {
-            return entity.Entities.FirstOrDefault(a => a.Name == name);
+            return entity.Entities?.FirstOrDefault(a => a.Name == name);
         }
 
         public static Entity GetEntity(this List<Entity> entities, string name)
@@ -149,9 +149,6 @@ namespace FormsByAir.SDK.Model
                 foreach (var element in root.DocumentElements)
                 {
                     line.Add(element);
-                }
-                foreach (var element in root.DocumentElements.Where(a => a.DocumentElements != null).ToList())
-                {
                     if (element.ElementType != ElementType.Condition || ignoreConditional || string.Equals(root.DocumentValue, element.Visibility, StringComparison.OrdinalIgnoreCase))
                     {
                         FlattenInternal(element, line, includeEmptyRepeaters, ignoreConditional);
@@ -177,13 +174,13 @@ namespace FormsByAir.SDK.Model
 
         private static void FlattenInternal(this Entity root, List<Entity> line)
         {
-            foreach (var entity in root.Entities)
+            if (root.Entities != null)
             {
-                line.Add(entity);
-            }
-            foreach (var entity in root.Entities.Where(a => a.Entities != null).ToList())
-            {
-                FlattenInternal(entity, line);
+                foreach (var entity in root.Entities)
+                {
+                    line.Add(entity);
+                    FlattenInternal(entity, line);
+                }
             }
         }
 
@@ -216,7 +213,27 @@ namespace FormsByAir.SDK.Model
                 {
                     child.SetParent(root);
                 }
+                if (!string.IsNullOrEmpty(root.DocumentElements.FirstOrDefault()?.LinkedRepeater))
+                {
+                    var linkedRepeaterParents = root.GetElementsByTagRecursive(root.DocumentElements.First().LinkedRepeater);
+                    if (linkedRepeaterParents.Any())
+                    {
+                        foreach (var child in root.DocumentElements)
+                        {
+                            child.LinkedRepeaterParent = linkedRepeaterParents[root.DocumentElements.IndexOf(child)];
+                        }
+                    }
+                }
             }
+        }
+
+        public static string JsonToText(this string text)
+        {
+            if (text.StartsWith("{"))
+            {
+                return string.Join(" ", ((JObject)JsonConvert.DeserializeObject(text)).Children().Cast<JProperty>().Select(jp => jp.Value));
+            }
+            return text;
         }
 
         public static string EmptyToNull(this string text)
@@ -234,18 +251,34 @@ namespace FormsByAir.SDK.Model
             return text == null ? null : length >= text.Length ? text : text.Substring(text.Length - length);
         }
 
-        public static bool EvaluateFilter(this Element element, string filter)
+        public static bool EvaluateFilter(this Element element, string filter, bool format = false)
         {
-            var e = new Expression(element.ParseTags(filter.FixSingleQuotes(), escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
-            var result = (bool)e.Evaluate();
-            return result;
+            try
+            {
+                var e = new Expression(element.ParseTags(filter.FixSingleQuotes(), format, escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
+                var result = (bool)e.Evaluate();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                ex.Data.Add("Filter", filter);
+                throw;
+            }
         }
 
         public static T EvaluateExpression<T>(this Element form, string expression, bool format = false)
         {
-            var e = new Expression(form.ParseTags(expression.FixSingleQuotes(), format, escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
-            var result = e.Evaluate();
-            return (T)Convert.ChangeType(result, typeof(T));
+            try
+            {
+                var e = new Expression(form.ParseTags(expression.FixSingleQuotes(), format, escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
+                var result = e.Evaluate();
+                return (T)Convert.ChangeType(result, typeof(T));
+            }
+            catch (Exception ex)
+            {
+                ex.Data.Add("Expression", expression);
+                throw;
+            }
         }
 
         public static bool BlockApproval(this Element root)
@@ -255,9 +288,17 @@ namespace FormsByAir.SDK.Model
 
         public static T EvaluateExpression<T>(this Schema document, string expression, bool format = false)
         {
-            var e = new Expression(document.Form.ParseTags(expression.FixSingleQuotes().ParseSchemaTags(document), format, escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
-            var result = e.Evaluate();
-            return (T)Convert.ChangeType(result, typeof(T));
+            try
+            {
+                var e = new Expression(document.Form.ParseTags(expression.FixSingleQuotes().ParseSchemaTags(document), format, escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
+                var result = e.Evaluate();
+                return (T)Convert.ChangeType(result, typeof(T));
+            }
+            catch (Exception ex)
+            {
+                ex.Data.Add("Expression", expression);
+                throw;
+            }
         }
 
         public static dynamic ToObject(this Entity entity)
@@ -269,22 +310,25 @@ namespace FormsByAir.SDK.Model
 
         private static void BuildEntityObject(Entity entity, IDictionary<string, object> item)
         {
-            foreach (var attribute in entity.Attributes)
+            if (entity.Attributes != null)
             {
-                if (attribute.Setter == "float")
+                foreach (var attribute in entity.Attributes)
                 {
-                    if (string.IsNullOrEmpty(attribute.Value))
+                    if (attribute.Setter == "float")
                     {
-                        item.Add(attribute.Name, null);
+                        if (string.IsNullOrEmpty(attribute.Value))
+                        {
+                            item.Add(attribute.Name, null);
+                        }
+                        else
+                        {
+                            item.Add(attribute.Name, float.Parse(attribute.Value));
+                        }
                     }
                     else
                     {
-                        item.Add(attribute.Name, float.Parse(attribute.Value));
+                        item.Add(attribute.Name, attribute.Value);
                     }
-                }
-                else
-                {
-                    item.Add(attribute.Name, attribute.Value);
                 }
             }
 
@@ -309,6 +353,66 @@ namespace FormsByAir.SDK.Model
                         list.Add(group);
                     }
                     item.Add(array, list);
+                }
+            }
+        }
+
+        public static Entity ToMap(this Schema schema)
+        {
+            var map = new Entity { Attributes = new List<Attribute>() };
+            foreach (var element in schema.Form.Elements)
+            {
+                BuildEntity(element, map);
+            }
+            return map;
+        }
+
+        private static void BuildEntity(Element element, Entity entity, string path = null)
+        {
+            if (element.ElementType == ElementType.Question)
+            {
+                if (element.Elements != null && element.Elements.Any())
+                {
+                    entity.Attributes.Add(new Attribute { Name = element.AutofillKey ?? element.Name, Value = path + (element.AutofillKey ?? element.Name) + ".@value" });
+                    foreach (var childElement in element.Elements)
+                    {
+                        BuildEntity(childElement, entity, path + (element.AutofillKey ?? element.Name) + ".");
+                    }
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(element.AutofillKey) && entity.Attributes.Any(a => a.Name == element.AutofillKey))
+                    {
+                        entity.Attributes.Add(new Attribute { Name = element.AutofillKey + element.Name, Value = path + (element.AutofillKey + element.Name) });
+                    }
+                    else
+                    {
+                        entity.Attributes.Add(new Attribute { Name = element.AutofillKey ?? element.Name, Value = path + (element.AutofillKey ?? element.Name) });
+                    }
+                }
+            }
+            else if (element.Elements != null && element.Elements.FirstOrDefault() != null && element.Elements.FirstOrDefault().AllowMany)
+            {
+                var repeater = element.Elements.FirstOrDefault();
+                var child = new Entity { Name = repeater.AutofillKey ?? repeater.Name, ForEach = path + (element.AutofillKey ?? element.Name), Attributes = new List<Attribute>() };
+                if (element.Elements != null)
+                {
+                    foreach (var childElement in element.Elements)
+                    {
+                        BuildEntity(childElement, child);
+                    }
+                }
+                if (entity.Entities == null)
+                {
+                    entity.Entities = new List<Entity>();
+                }
+                entity.Entities.Add(child);
+            }
+            else
+            {
+                foreach (var childElement in element.Elements)
+                {
+                    BuildEntity(childElement, entity, path);
                 }
             }
         }
@@ -344,7 +448,7 @@ namespace FormsByAir.SDK.Model
                         item.Add(element.AutofillKey + element.Name, group);
                     }
                 }
-                else if (!flatten || !string.IsNullOrEmpty(element.DocumentValue))
+                else if (!flatten || (!string.IsNullOrEmpty(element.DocumentValue) && element.Type != "signature" && element.Type != "diagram"))
                 {
                     try
                     {
@@ -374,6 +478,15 @@ namespace FormsByAir.SDK.Model
             {
                 if (flatten)
                 {
+                    if (element.ElementType == ElementType.ValidationService)
+                    {
+                        var group = new ExpandoObject();
+                        (group as IDictionary<string, object>).Add("@value", element.DocumentValue);
+                        (group as IDictionary<string, object>).Add("@message", element.SectionValidationMessage);
+                        (group as IDictionary<string, object>).Add("@datetime", element.SectionValidationDateTime);
+                        (group as IDictionary<string, object>).Add("@reference", element.SectionValidationReference);
+                        item.Add(element.AutofillKey ?? element.Name, group);
+                    }
                     foreach (var childElement in element.DocumentElements)
                     {
                         BuildObject(childElement, item, flatten, ignoreConditional, element);
@@ -382,6 +495,13 @@ namespace FormsByAir.SDK.Model
                 else
                 {
                     var group = new ExpandoObject();
+                    if (element.ElementType == ElementType.ValidationService)
+                    {
+                        (group as IDictionary<string, object>).Add("@value", element.DocumentValue);
+                        (group as IDictionary<string, object>).Add("@message", element.SectionValidationMessage);
+                        (group as IDictionary<string, object>).Add("@datetime", element.SectionValidationDateTime);
+                        (group as IDictionary<string, object>).Add("@reference", element.SectionValidationReference);
+                    }
                     if (element.DocumentElements != null)
                     {
                         foreach (var childElement in element.DocumentElements)
@@ -430,7 +550,15 @@ namespace FormsByAir.SDK.Model
                     }
                     else
                     {
-                        attribute.Value = root.ParseTags(attribute.Value, format);
+                        try
+                        {
+                            attribute.Value = root.ParseTags(attribute.Value, format);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex.Data.Add("Attribute", attribute.Name);
+                            throw;
+                        }
                         if (!string.IsNullOrEmpty(attribute.Filter))
                         {
                             var e = new Expression(root.ParseTags(attribute.Filter.FixSingleQuotes(), format, escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
@@ -497,7 +625,7 @@ namespace FormsByAir.SDK.Model
             }
         }
 
-        public static string ParseTags(this Element root, string note, bool format = true, bool preflattened = false, string separator = " ", bool escapeDoubleQuotes = false, bool escapeSingleQuotes = false, bool join = false, bool escapeXML = false, bool htmlLineBreaks = false, bool escapeSlashes = false)
+        public static string ParseTags(this Element root, string note, bool format = true, bool preflattened = false, string separator = " ", bool escapeDoubleQuotes = false, bool escapeSingleQuotes = false, bool join = false, bool escapeXML = false, bool htmlOutput = false, bool escapeSlashes = false)
         {
             if (string.IsNullOrEmpty(note))
             {
@@ -539,7 +667,7 @@ namespace FormsByAir.SDK.Model
                     {
                         if (string.IsNullOrEmpty(filter) || repeater.EvaluateFilter(filter))
                         {
-                            var line = repeater.ParseTags(repeaterTag, format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlLineBreaks: htmlLineBreaks);
+                            var line = repeater.ParseTags(repeaterTag, format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlOutput: htmlOutput);
                             documentElementValue += line + separator;
                         }
                     }
@@ -568,9 +696,41 @@ namespace FormsByAir.SDK.Model
                     {
                         if (string.IsNullOrEmpty(filter) || repeater.EvaluateFilter(filter))
                         {
-                            var line = repeater.ParseTags(repeaterTag, format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlLineBreaks: htmlLineBreaks);
+                            var line = repeater.ParseTags(repeaterTag, format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlOutput: htmlOutput);
                             documentElementValue += line;
                             break;
+                        }
+                    }
+                }
+                else if (tagName.StartsWith("[ElementAt("))
+                {
+                    tagName = tagName.Remove(tagName.Length - 1).Substring(11);
+                    var repeaterIndex = int.Parse(tagName.Substring(0, tagName.IndexOf(")")));
+                    tagName = tagName.Substring(tagName.IndexOf(")") + 2);
+                    var repeaterName = tagName.IndexOf(":") > -1 ? tagName.Substring(0, tagName.IndexOf(":")) : tagName;
+                    var repeaterTag = tagName.IndexOf(":") > -1 ? tagName.Substring(tagName.IndexOf(":") + 1) : "<<[This]>>";
+                    var filter = "";
+
+                    if (repeaterName.IndexOf("{") != -1)
+                    {
+                        filter = repeaterName.Split("{}".ToCharArray())[1];
+                        repeaterName = repeaterName.Replace("{" + filter + "}", "").Trim();
+                    }
+
+                    var repeaters = root.GetElementsByTagRecursive(repeaterName);
+                    var count = 0;
+
+                    foreach (var repeater in repeaters)
+                    {
+                        if (string.IsNullOrEmpty(filter) || repeater.EvaluateFilter(filter))
+                        {
+                            if (count == repeaterIndex)
+                            {
+                                var line = repeater.ParseTags(repeaterTag, format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlOutput: htmlOutput);
+                                documentElementValue += line;
+                                break;
+                            }
+                            count++;
                         }
                     }
                 }
@@ -592,7 +752,7 @@ namespace FormsByAir.SDK.Model
 
                     if (root.EvaluateFilter(filter))
                     {
-                        var line = root.ParseTags(repeaterTag, format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlLineBreaks: htmlLineBreaks);
+                        var line = root.ParseTags(repeaterTag, format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlOutput: htmlOutput);
                         documentElementValue += line;
                     }
                 }
@@ -618,8 +778,13 @@ namespace FormsByAir.SDK.Model
                 else if (tagName.StartsWith("[Any:"))
                 {
                     var repeaterName = tagName.Remove(tagName.Length - 1).Substring(5);
-                    var filter = repeaterName.Split("{}".ToCharArray())[1];
-                    repeaterName = repeaterName.Replace("{" + filter + "}", "").Trim();
+                    var filter = "";
+
+                    if (repeaterName.IndexOf("{") != -1)
+                    {
+                        filter = repeaterName.Split("{}".ToCharArray())[1];
+                        repeaterName = repeaterName.Replace("{" + filter + "}", "").Trim();
+                    }
 
                     var repeaters = root.GetElementsByTagRecursive(repeaterName);
 
@@ -627,7 +792,7 @@ namespace FormsByAir.SDK.Model
 
                     foreach (var repeater in repeaters)
                     {
-                        if (repeater.EvaluateFilter(filter))
+                        if (string.IsNullOrEmpty(filter) || repeater.EvaluateFilter(filter))
                         {
                             documentElementValue = "true";
                             break;
@@ -664,15 +829,39 @@ namespace FormsByAir.SDK.Model
                     }
                     else
                     {
-                        var e = new Expression(root.ParseTags(expression.FixSingleQuotes().Replace("@Count", count.ToString()), format, preflattened, separator, escapeSingleQuotes: true, escapeSlashes: true, escapeXML: escapeXML).CleanForExpression());
-                        documentElementValue = e.Evaluate().ToString();
+                        try
+                        {
+                            if (htmlOutput)
+                            {
+                                expression = expression.Replace("&lt;", "<").Replace("&gt;", ">");
+                            }
+                            var e = new Expression(root.ParseTags(expression.FixSingleQuotes().Replace("@Count", count.ToString()), format, preflattened, separator, escapeSingleQuotes: true, escapeSlashes: true, escapeXML: escapeXML).CleanForExpression());
+                            documentElementValue = e.Evaluate().ToString();
+                            if (htmlOutput)
+                            {
+                                documentElementValue = documentElementValue.Replace("<", "&lt;").Replace(">", "&gt;");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ex.Data.Add("Expression", expression);
+                            throw;
+                        }
                     }
                 }
                 else if (tagName.StartsWith("[Expression:"))
                 {
                     var expression = tagName.Substring(12).TrimEnd(']');
-                    var e = new Expression(root.ParseTags(expression.FixSingleQuotes(), format, preflattened, separator, escapeSingleQuotes: true, escapeSlashes: true, escapeXML: escapeXML).CleanForExpression());
-                    documentElementValue = e.Evaluate().ToString();
+                    try
+                    {
+                        var e = new Expression(root.ParseTags(expression.FixSingleQuotes(), format, preflattened, separator, escapeSingleQuotes: true, escapeSlashes: true, escapeXML: escapeXML).CleanForExpression());
+                        documentElementValue = e.Evaluate().ToString();
+                    }
+                    catch (Exception ex)
+                    {
+                        ex.Data.Add("Expression", expression);
+                        throw;
+                    }
                 }
                 else if (tagName.StartsWith("[Join:"))
                 {
@@ -703,12 +892,12 @@ namespace FormsByAir.SDK.Model
                 {
                     string[] parts = tagName.Split("[]".ToCharArray());
                     var repeaterName = parts[0];
-                    var repaterIndex = Convert.ToInt16(parts[1]);
+                    var repeaterIndex = int.Parse(parts[1]);
                     var repeaterTag = "<<" + parts[2].TrimStart('.') + ">>";
                     var repeaters = root.GetElementsByTagRecursive(repeaterName);
-                    if (repaterIndex < repeaters.Count)
+                    if (repeaterIndex < repeaters.Count)
                     {
-                        documentElementValue = repeaters[repaterIndex].ParseTags(repeaterTag, format, preflattened, separator);
+                        documentElementValue = repeaters[repeaterIndex].ParseTags(repeaterTag, format, preflattened, separator);
                     }
                 }
                 else
@@ -723,10 +912,14 @@ namespace FormsByAir.SDK.Model
                     else if (tagName.IndexOf(".") != -1)
                     {
                         tagProperty = tagName.Substring(tagName.IndexOf(".") + 1);
+                        if (tagProperty.StartsWith("[SectionValidationData."))
+                        {
+                            tagProperty = tagProperty.Replace("[SectionValidationData.", "").TrimEnd(']');
+                        }
                         tagName = tagName.Substring(0, tagName.IndexOf("."));
                     }
 
-                    var matches = tagName == "[This]" ? new List<Element> { root } : elements.Where(a => a.AutofillKey != null && a.AutofillKey.Equals(tagName, StringComparison.OrdinalIgnoreCase)).ToList();
+                    var matches = tagName == "[This]" || (root.AllowMany && root.AutofillKey != null && root.AutofillKey.Equals(tagName, StringComparison.OrdinalIgnoreCase)) ? new List<Element> { root } : elements.Where(a => a.AutofillKey != null && a.AutofillKey.Equals(tagName, StringComparison.OrdinalIgnoreCase)).ToList();
 
                     if (matches.Any())
                     {
@@ -734,100 +927,140 @@ namespace FormsByAir.SDK.Model
                         {
                             var value = element.DocumentValue ?? "";
 
-                            if (!string.IsNullOrEmpty(tagProperty) && element.Token != null)
+                            try
                             {
-                                value = element.Token.SelectToken(tagProperty).Value<string>();
-                            }
+                                if (tagProperty == "[SectionValidationMessage]")
+                                {
+                                    value = element.SectionValidationMessage;
+                                }
+                                else if (tagProperty == "[SectionValidationReference]")
+                                {
+                                    value = element.SectionValidationReference;
+                                }
+                                else if (tagProperty == "[SectionValidationDateTime]")
+                                {
+                                    value = element.SectionValidationDateTime;
+                                }
+                                else if (!string.IsNullOrEmpty(tagProperty) && element.Token != null)
+                                {
+                                    value = element.Token.SelectToken(tagProperty).Value<string>() ?? "";
+                                }
 
-                            if (element.Type == "boolean" && tagProperty != "Value" && (format || !escapeXML))
-                            {
-                                value = value == "true" ? "Yes" : "No";
-                            }
-                            else if (element.Type == "option" && tagProperty != "Value")
-                            {
-                                value = value == "true" ? element.Prompt : "";
-                            }
-                            else if (element.Type == "nameValueList" && !string.IsNullOrEmpty(value) && ((format && tagProperty != "Value") || tagProperty == "Name"))
-                            {
-                                value = element.SimpleType.Values.Single(a => a.Value == value).Name;
-                            }
-                            else if (element.Type == "date" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
-                            {
-                                value = DateTime.Parse(value).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : element.Format == "year" ? "yyyy" : element.Format == "month" ? "MMM-yyyy" : "dd-MMM-yyyy");
-                            }
-                            else if (element.Type == "time" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
-                            {
-                                value = DateTime.Parse(value).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : element.Format == "12" ? "hh:mm tt" : "HH:mm");
-                            }
-                            else if (element.Type == "currency" && !string.IsNullOrEmpty(value) && format)
-                            {
-                                value = decimal.Parse(value, NumberStyles.Float).ToString("C" + element.Decimals);
-                            }
-                            else if ((element.Type == "number" || element.Type == "slider") && !string.IsNullOrEmpty(value) && format)
-                            {
-                                value = decimal.Parse(value, NumberStyles.Float).ToString("N" + (string.IsNullOrEmpty(element.Decimals) ? "0" : element.Decimals));
-                            }
-                            else if (element.Type == "percent" && !string.IsNullOrEmpty(value) && format)
-                            {
-                                value = decimal.Parse(value, NumberStyles.Float).ToString("P" + element.Decimals);
-                            }
-                            else if (element.Type == "formula" && !string.IsNullOrEmpty(value) && format)
-                            {
-                                if (element.Format == "date")
+                                if (element.Type == "boolean" && tagProperty != "Value" && (format || !escapeXML))
+                                {
+                                    value = value == "true" ? "Yes" : "No";
+                                }
+                                else if (element.Type == "option" && tagProperty != "Value")
+                                {
+                                    value = value == "true" ? element.Prompt : "";
+                                }
+                                else if (element.Type == "nameValueList" && !string.IsNullOrEmpty(value) && ((format && tagProperty != "Value") || tagProperty == "Name"))
+                                {
+                                    value = element.SimpleType.Values.Single(a => a.Value == value).Name;
+                                }
+                                else if (element.Type == "date" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
                                 {
                                     value = DateTime.Parse(value).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : element.Format == "year" ? "yyyy" : element.Format == "month" ? "MMM-yyyy" : "dd-MMM-yyyy");
                                 }
-                                if (element.Format == "number")
+                                else if (element.Type == "time" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
                                 {
-                                    value = decimal.Parse(value, NumberStyles.Float).ToString("N" + (string.IsNullOrEmpty(element.Decimals) ? "0" : element.Decimals));
+                                    value = DateTime.Parse(value).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : element.Format == "12" ? "hh:mm tt" : "HH:mm");
                                 }
-                                if (element.Format == "percent")
+                                else if (element.Type == "currency" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
                                 {
-                                    value = decimal.Parse(value, NumberStyles.Float).ToString("P" + element.Decimals);
+                                    value = decimal.Parse(value, NumberStyles.Float).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : "C" + element.Decimals);
                                 }
-                                else if (element.Format == "currency" || string.IsNullOrEmpty(element.Format) && Decimal.TryParse(value, out decimal n))
+                                else if (element.Type == "number" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
                                 {
-                                    value = decimal.Parse(value, NumberStyles.Float).ToString("C" + element.Decimals);
+                                    value = decimal.Parse(value, NumberStyles.Float).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : "N" + (string.IsNullOrEmpty(element.Decimals) ? "0" : element.Decimals));
+                                }
+                                else if (element.Type == "slider" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
+                                {
+                                    value = decimal.Parse(value, NumberStyles.Float).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : "N" + (float.Parse(element.Step) < 1 ? "1" : "0"));
+                                }
+                                else if (element.Type == "percent" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
+                                {
+                                    value = decimal.Parse(value, NumberStyles.Float).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : "P" + element.Decimals);
+                                }
+                                else if (element.Type == "formula" && !string.IsNullOrEmpty(value) && (format || !string.IsNullOrEmpty(tagFormat)))
+                                {
+                                    if (element.Format == "date")
+                                    {
+                                        value = DateTime.Parse(value).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : element.Format == "year" ? "yyyy" : element.Format == "month" ? "MMM-yyyy" : "dd-MMM-yyyy");
+                                    }
+                                    if (element.Format == "number")
+                                    {
+                                        value = decimal.Parse(value, NumberStyles.Float).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : "N" + (string.IsNullOrEmpty(element.Decimals) ? "0" : element.Decimals));
+                                    }
+                                    if (element.Format == "percent")
+                                    {
+                                        value = decimal.Parse(value, NumberStyles.Float).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : "P" + element.Decimals);
+                                    }
+                                    else if (element.Format == "currency" || string.IsNullOrEmpty(element.Format) && Decimal.TryParse(value, out decimal n))
+                                    {
+                                        value = decimal.Parse(value, NumberStyles.Float).ToString(!string.IsNullOrEmpty(tagFormat) ? tagFormat : "C" + element.Decimals);
+                                    }
+                                }
+                                else if (element.Type == "nzird" && !string.IsNullOrEmpty(value) && tagFormat != "nzird" && (!format || tagFormat == "0"))
+                                {
+                                    value = value.Replace("-", "");
+                                }
+                                else if (element.Type == "nzbank" && !string.IsNullOrEmpty(value) && tagFormat == "0")  //TODO: change this to respect 'format' like nzird
+                                {
+                                    value = value.Replace("-", "");
+                                }
+                                else if (!string.IsNullOrEmpty(element.Decimals) && !string.IsNullOrEmpty(value) && (element.Type == "percent" || element.Format == "percent"))
+                                {
+                                    value = decimal.Parse(value, NumberStyles.Float).ToString("F" + (int.Parse(element.Decimals) + 2));
+                                }
+                                else if (!string.IsNullOrEmpty(element.Decimals) && !string.IsNullOrEmpty(value))
+                                {
+                                    value = decimal.Parse(value, NumberStyles.Float).ToString("F" + element.Decimals);
+                                }
+                                if (escapeSlashes)
+                                {
+                                    value = value.Replace("\\", "\\\\");
+                                }
+                                if (escapeDoubleQuotes)
+                                {
+                                    value = value.Replace("\"", "\"\"");
+                                }
+                                if (escapeSingleQuotes)
+                                {
+                                    value = value.Replace("'", "\\'");
+                                }
+                                if (escapeXML)
+                                {
+                                    value = System.Security.SecurityElement.Escape(value);
+                                }
+                                if (htmlOutput)
+                                {
+                                    if (element.Type == "string")
+                                    {
+                                        value = value.Replace("<", "&lt;").Replace(">", "&gt;");
+                                    }
+                                    else if (element.Type != "dataService")
+                                    {
+                                        value = value.Replace("\n", "<br>");
+                                    }
                                 }
                             }
-                            else if (element.Type == "nzird" && !string.IsNullOrEmpty(value) && tagFormat != "nzird" && (!format || tagFormat == "0"))
+                            catch (Exception ex)
                             {
-                                value = value.Replace("-", "");
+                                ex.Data.Add("Value", value);
+                                throw;
                             }
-                            else if (!string.IsNullOrEmpty(element.Decimals) && !string.IsNullOrEmpty(value))
-                            {
-                                value = decimal.Parse(value, NumberStyles.Float).ToString("F" + element.Decimals);
-                            }
-                            if (escapeSlashes)
-                            {
-                                value = value.Replace("\\", "\\\\");
-                            }
-                            if (escapeDoubleQuotes)
-                            {
-                                value = value.Replace("\"", "\"\"");
-                            }
-                            if (escapeSingleQuotes)
-                            {
-                                value = value.Replace("'", "\\'").Replace("\n", "");
-                            }
-                            if (escapeXML)
-                            {
-                                value = System.Security.SecurityElement.Escape(value);
-                            }
-                            if (htmlLineBreaks)
-                            {
-                                value = value.Replace("\n", "<br>");
-                            }
+
                             if (!string.IsNullOrEmpty(value))
                             {
                                 documentElementValue += value + separator;
                             }
                         }
                     }
-                    else if (root.Parent != null && !root.Flatten(true, true).Any(a => a.AutofillKey != null && a.AutofillKey.Equals(tagName, StringComparison.OrdinalIgnoreCase)))
+                    else if ((root.LinkedRepeaterParent != null || root.Parent != null) && !root.Flatten(true, true).Any(a => a.AutofillKey != null && a.AutofillKey.Equals(tagName, StringComparison.OrdinalIgnoreCase)))
                     {
                         //escalate to parent scope if parent exists and element doesn't exist at current level behind conditional path or empty repeater
-                        documentElementValue = root.Parent.ParseTags(string.Format("<<{0}>>", !string.IsNullOrEmpty(tagFormat) ? string.Format("{0}|{1}", tagName, tagFormat) : !string.IsNullOrEmpty(tagProperty) ? string.Format("{0}.{1}", tagName, tagProperty) : tagName), format);
+                        documentElementValue = (root.LinkedRepeaterParent ?? root.Parent).ParseTags(string.Format("<<{0}>>", !string.IsNullOrEmpty(tagFormat) ? string.Format("{0}|{1}", tagName, tagFormat) : !string.IsNullOrEmpty(tagProperty) ? string.Format("{0}.{1}", tagName, tagProperty) : tagName), format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlOutput: htmlOutput);
                     }
                 }
                 if (!string.IsNullOrEmpty(separator) && documentElementValue.EndsWith(separator))
@@ -858,11 +1091,14 @@ namespace FormsByAir.SDK.Model
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
 
+        public static string RemoveInvalidChars(this string filename)
+        {
+            return string.Concat(filename.Split(Path.GetInvalidFileNameChars()));
+        }
+
         public static string MakeValidFileName(this string name)
         {
-            string invalidChars = Regex.Escape(new string(Path.GetInvalidFileNameChars()));
-            string invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);
-            return Regex.Replace(name.RemoveDiacritics(), invalidRegStr, "").Replace("–", "-").Replace("’", "'").Left(240).Trim();
+            return name.RemoveInvalidChars().RemoveDiacritics().Replace("–", "-").Replace("’", "'").Left(240).Trim();
         }
 
         public static string RemoveDiacritics(this string text)
@@ -883,7 +1119,7 @@ namespace FormsByAir.SDK.Model
         
         private static string CleanForExpression(this string input)
         {
-            return input.Replace("\t", "");
+            return input.Replace("\t", "").Replace("\n", "");
         }
 
         private static string FixSingleQuotes(this string input)
@@ -925,7 +1161,10 @@ namespace FormsByAir.SDK.Model
             }
             else if (!string.IsNullOrEmpty(tag.Data))
             {
-                var elements = root.Flatten(ignoreConditional: true).Where(a => a.AutofillKey != null && a.AutofillKey.Equals(tag.Tag, StringComparison.OrdinalIgnoreCase)).ToList();
+                var elements = root.Flatten(ignoreConditional: true).Where(a => (a.AutofillKey + a.Name).Equals(tag.Tag, StringComparison.OrdinalIgnoreCase)
+                                            || a.Name.Equals(tag.Tag, StringComparison.OrdinalIgnoreCase)
+                                            || a.AutofillKey != null && a.AutofillKey.Equals(tag.Tag, StringComparison.OrdinalIgnoreCase)).ToList();
+
                 foreach (var element in elements)
                 {
                     element.DocumentValue = tag.Data;
