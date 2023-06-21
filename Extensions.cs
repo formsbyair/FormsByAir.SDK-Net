@@ -135,23 +135,25 @@ namespace FormsByAir.SDK.Model
             return entity.Entities?.Where(a => a.Name == name).ToList() ?? new List<Entity>();
         }
 
-        public static List<Element> Flatten(this Element root, bool includeEmptyRepeaters = false, bool ignoreConditional = false)
+        public static List<Element> Flatten(this Element root, bool includeEmptyRepeaters = false, bool ignoreConditional = false, string requestDocumentId = null)
         {
             var line = new List<Element>();
-            root.FlattenInternal(line, includeEmptyRepeaters, ignoreConditional);
+            root.FlattenInternal(line, includeEmptyRepeaters, ignoreConditional, requestDocumentId);
             return line;
         }
 
-        private static void FlattenInternal(this Element root, List<Element> line, bool includeEmptyRepeaters = false, bool ignoreConditional = false)
+        private static void FlattenInternal(this Element root, List<Element> line, bool includeEmptyRepeaters = false, bool ignoreConditional = false, string requestDocumentId = null)
         {
             if (root.DocumentElements != null)
             {
                 foreach (var element in root.DocumentElements)
                 {
                     line.Add(element);
-                    if (element.ElementType != ElementType.Condition || ignoreConditional || string.Equals(root.DocumentValue, element.Visibility, StringComparison.OrdinalIgnoreCase))
+
+                    if ((element.ElementType != ElementType.Request || string.IsNullOrEmpty(requestDocumentId) || element.RequestDocumentId == requestDocumentId) &&
+                        (element.ElementType != ElementType.Condition || ignoreConditional || string.Equals(root.DocumentValue, element.Visibility, StringComparison.OrdinalIgnoreCase)))
                     {
-                        FlattenInternal(element, line, includeEmptyRepeaters, ignoreConditional);
+                        FlattenInternal(element, line, includeEmptyRepeaters, ignoreConditional, requestDocumentId);
                     }
                 }
             }
@@ -160,7 +162,7 @@ namespace FormsByAir.SDK.Model
                 line.Add(root.Elements[0]);
                 if (root.Elements[0].DocumentElements != null)
                 {
-                    FlattenInternal(root.Elements[0], line, includeEmptyRepeaters, ignoreConditional);
+                    FlattenInternal(root.Elements[0], line, includeEmptyRepeaters, ignoreConditional, requestDocumentId);
                 }
             }
         }
@@ -239,6 +241,11 @@ namespace FormsByAir.SDK.Model
         public static string EmptyToNull(this string text)
         {
             return string.IsNullOrEmpty(text) ? null : text;
+        }
+
+        public static string NewLineToCR(this string text)
+        {
+            return text.Replace("\r\n", "\r").Replace("\n", "\r");
         }
 
         public static string Left(this string text, int length)
@@ -323,6 +330,17 @@ namespace FormsByAir.SDK.Model
                         else
                         {
                             item.Add(attribute.Name, float.Parse(attribute.Value));
+                        }
+                    }
+                    else if (attribute.Setter == "boolean")
+                    {
+                        if (string.IsNullOrEmpty(attribute.Value))
+                        {
+                            item.Add(attribute.Name, false);
+                        }
+                        else
+                        {
+                            item.Add(attribute.Name, bool.Parse(attribute.Value));
                         }
                     }
                     else
@@ -485,6 +503,7 @@ namespace FormsByAir.SDK.Model
                         (group as IDictionary<string, object>).Add("@message", element.SectionValidationMessage);
                         (group as IDictionary<string, object>).Add("@datetime", element.SectionValidationDateTime);
                         (group as IDictionary<string, object>).Add("@reference", element.SectionValidationReference);
+                        (group as IDictionary<string, object>).Add("@result", element.SectionValidationResult);
                         item.Add(element.AutofillKey ?? element.Name, group);
                     }
                     foreach (var childElement in element.DocumentElements)
@@ -501,6 +520,7 @@ namespace FormsByAir.SDK.Model
                         (group as IDictionary<string, object>).Add("@message", element.SectionValidationMessage);
                         (group as IDictionary<string, object>).Add("@datetime", element.SectionValidationDateTime);
                         (group as IDictionary<string, object>).Add("@reference", element.SectionValidationReference);
+                        (group as IDictionary<string, object>).Add("@result", element.SectionValidationResult);
                     }
                     if (element.DocumentElements != null)
                     {
@@ -550,6 +570,16 @@ namespace FormsByAir.SDK.Model
                     }
                     else
                     {
+                        if (!string.IsNullOrEmpty(attribute.Filter))
+                        {
+                            var e = new Expression(root.ParseTags(attribute.Filter.FixSingleQuotes(), format, escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
+                            var result = (bool)e.Evaluate();
+                            if (!result)
+                            {
+                                attribute.Value = null;
+                                continue;
+                            }
+                        }
                         try
                         {
                             attribute.Value = root.ParseTags(attribute.Value, format);
@@ -559,16 +589,6 @@ namespace FormsByAir.SDK.Model
                             ex.Data.Add("Attribute", attribute.Name);
                             throw;
                         }
-                        if (!string.IsNullOrEmpty(attribute.Filter))
-                        {
-                            var e = new Expression(root.ParseTags(attribute.Filter.FixSingleQuotes(), format, escapeSingleQuotes: true, escapeSlashes: true).CleanForExpression());
-                            var result = (bool)e.Evaluate();
-                            if (!result)
-                            {
-                                attribute.Value = null;
-                            }
-                        }
-
                     }
                 }
                 entity.Attributes.RemoveAll(a => a.Value == null);
@@ -662,12 +682,13 @@ namespace FormsByAir.SDK.Model
                     }
 
                     var repeaters = root.GetElementsByTagRecursive(repeaterName);
+                    var index = 1;
 
                     foreach (var repeater in repeaters)
                     {
                         if (string.IsNullOrEmpty(filter) || repeater.EvaluateFilter(filter))
                         {
-                            var line = repeater.ParseTags(repeaterTag, format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlOutput: htmlOutput);
+                            var line = repeater.ParseTags(repeaterTag.Replace("@Index", index++.ToString()), format, preflattened, separator, escapeDoubleQuotes, escapeSingleQuotes, escapeXML: escapeXML, htmlOutput: htmlOutput);
                             documentElementValue += line + separator;
                         }
                     }
@@ -893,7 +914,7 @@ namespace FormsByAir.SDK.Model
                     string[] parts = tagName.Split("[]".ToCharArray());
                     var repeaterName = parts[0];
                     var repeaterIndex = int.Parse(parts[1]);
-                    var repeaterTag = "<<" + parts[2].TrimStart('.') + ">>";
+                    var repeaterTag = "<<" + tagName.Substring(tagName.IndexOf("].") + 2) + ">>";
                     var repeaters = root.GetElementsByTagRecursive(repeaterName);
                     if (repeaterIndex < repeaters.Count)
                     {
@@ -941,12 +962,20 @@ namespace FormsByAir.SDK.Model
                                 {
                                     value = element.SectionValidationDateTime;
                                 }
+                                else if (tagProperty == "[SectionValidationResult]")
+                                {
+                                    value = element.SectionValidationResult;
+                                }
                                 else if (!string.IsNullOrEmpty(tagProperty) && element.Token != null)
                                 {
-                                    value = element.Token.SelectToken(tagProperty).Value<string>() ?? "";
+                                    value = element.Token.SelectToken(tagProperty)?.Value<string>() ?? "";
                                 }
 
-                                if (element.Type == "boolean" && tagProperty != "Value" && (format || !escapeXML))
+                                if (tagFormat == "filename")
+                                {
+                                    value = value.MakeValidFileName();
+                                }
+                                else if (element.Type == "boolean" && tagProperty != "Value" && (format || !escapeXML))
                                 {
                                     value = value == "true" ? "Yes" : "No";
                                 }

@@ -69,7 +69,7 @@ namespace FormsByAir.SDK.Model
 
     public class Schema
     {
-        public Element Form { get; set; }        
+        public Element Form { get; set; }
         public List<SimpleType> SimpleTypes { get; set; }
         public List<ComplexType> ComplexTypes { get; set; }
         public string FormId { get; set; }
@@ -84,7 +84,7 @@ namespace FormsByAir.SDK.Model
         public bool BlockSave { get; set; }
         public bool BlockSaveCookie { get; set; }
         public bool HideNavFirstSection { get; set; }
-        public bool HideRestart { get; set; }        
+        public bool HideRestart { get; set; }
         public bool HideFormAfterSubmit { get; set; }
         public bool HideTitle { get; set; }
         public string ConfirmationMessage { get; set; }
@@ -96,11 +96,14 @@ namespace FormsByAir.SDK.Model
         public bool SaveDocumentDeliveryId { get; set; }
         public bool SaveRequestDocumentId { get; set; }
         public bool SaveRequestCompleted { get; set; }
-        public bool BlockSubmitOnEnter { get; set; }        
+        public bool BlockSubmitOnEnter { get; set; }
         public bool AutoSaveSections { get; set; }
         public bool SaveSectionValidationData { get; set; }
+        public bool SaveSectionValidationMessage { get; set; }
+        public bool SaveSectionValidationReference { get; set; }
         public int? DocumentVersion { get; set; }
         public bool AutoGenerateMissingTags { get; set; }
+        public bool SaveTryCount { get; set; }
     }
 
     public class Element
@@ -139,8 +142,8 @@ namespace FormsByAir.SDK.Model
         public string ConfirmationMessage { get; set; }
         public string TableId { get; set; }
         public string Audit { get; set; }
-        public string ListType { get; set; }        
-        public Element Parent { get; set; }        
+        public string ListType { get; set; }
+        public Element Parent { get; set; }
         public Element LinkedRepeaterParent { get; set; }
         public string Format { get; set; }
         public string Min { get; set; }
@@ -161,12 +164,13 @@ namespace FormsByAir.SDK.Model
         public string DisplayProperty { get; set; }
         public string DocumentDeliveryId { get; set; }
         public string RequestDocumentId { get; set; }
-        public string FilenameFormat { get; set; }        
+        public string FilenameFormat { get; set; }
         public JToken Token { get; set; }
         public string SectionValidationData { get; set; }
         public string SectionValidationMessage { get; set; }
         public string SectionValidationReference { get; set; }
         public string SectionValidationDateTime { get; set; }
+        public string SectionValidationResult { get; set; }
         public string Autocomplete { get; set; }
         public string Filter { get; set; }
         public bool DeferValidation { get; set; }
@@ -181,7 +185,8 @@ namespace FormsByAir.SDK.Model
         Workflow = 4,
         Section = 5,
         ValidationService = 6,
-        Request = 7
+        Request = 7,
+        PaymentService = 8
     }
 
     public class Enumeration
