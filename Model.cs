@@ -47,6 +47,71 @@ namespace FormsByAir.SDK.Model
         public string WorkflowUserId { get; set; }
     }
 
+    public class DocumentInformation
+    {
+        public Document Document { get; set; }
+        public List<DocumentVersion> DocumentVersions { get; set; }
+        public List<DocumentWorkflow> DocumentWorkflows { get; set; }
+        public List<Document> DocumentRequests { get; set; }
+        public List<DocumentDelivery> DocumentDeliveries { get; set; }
+    }
+
+    public partial class DocumentWorkflow
+    {
+        public string DocumentWorkflowId { get; set; }
+        public string DocumentId { get; set; }
+        public DateTime WorkflowDateTime { get; set; }
+        public string UserId { get; set; }
+        public string WorkflowStatusId { get; set; }
+        public string WorkflowUserId { get; set; }
+        public string Comment { get; set; }
+        public int DocumentVersion { get; set; }
+        public string Stage { get; set; }
+    }
+
+    public class DocumentVersion
+    {
+        public string DocumentVersionId { get; set; }
+        public string DocumentId { get; set; }
+        public int Version { get; set; }
+        public SubmissionType SubmissionType { get; set; }
+        public DateTime ReceivedDateTime { get; set; }
+        public string IPAddress { get; set; }
+        public string UserAgent { get; set; }
+        public string UserId { get; set; }
+        public string Referrer { get; set; }
+        public string Stage { get; set; }
+    }
+
+    public enum SubmissionType
+    {
+        Workflow = -1,
+        Submit = 0,
+        SubmitPartial = 1,
+        SaveUserTemplate = 2,
+        SaveUser = 3,
+        Save = 4,
+        Request = 5,
+        Resubmit = 6,
+        Validation = 7,
+        Delete = 8,
+        Open = 9,
+        Expired = 10,
+        Upgrade = 11,
+        Purged = 12,
+        ThirdPartyRequest = 13,
+        ThirdPartySubmit = 14,
+        API = 15,
+        Download = 16,
+        Authorisation = 17,
+        Reprocess = 18,
+        Update = 19,
+        AutoSave = 20,
+        Authorise = 21,
+        Start = 22,
+        Section = 23
+    }
+
     public class Subscription
     {
         public string SubscriptionId { get; set; }
@@ -59,6 +124,11 @@ namespace FormsByAir.SDK.Model
         public string DocumentDeliveryId { get; set; }
         public string DocumentId { get; set; }
         public string SubscriptionId { get; set; }
+        public DateTime QueuedDateTime { get; set; }
+        public DateTime? DeliveryDateTime { get; set; }
+        public DateTime? ExpiryDateTime { get; set; }
+        public string DeliveryRef { get; set; }
+        public DateTime? LockTimeoutDateTime { get; set; }                                
         public Subscription Subscription { get; set; }
     }
 

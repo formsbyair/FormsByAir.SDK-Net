@@ -141,6 +141,31 @@ namespace FormsByAir.SDK
             return response.Data.Schema;
         }
 
+        public DocumentInformation GetDocumentInformation(string documentId)
+        {
+            var request = new RestRequest("api/v1/documents/{id}/information", Method.GET);
+            request.AddHeader("Authorization", "Bearer " + ApiKey);
+            request.AddHeader("Content-Type", "application/json");
+            request.AddUrlSegment("id", documentId);
+
+            var response = client.Execute<DocumentInformation>(request);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+            if (response.ErrorException != null)
+            {
+                throw new Exception(response.ErrorException.Message);
+            }
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                throw new Exception(string.IsNullOrEmpty(response.Content) ? response.StatusDescription : response.Content);
+            }
+
+            return response.Data;
+        }
+
         public void DeleteDocument(string documentId, string comment = null)
         {
             var request = new RestRequest("api/v1/documents/{id}", Method.DELETE);
@@ -154,7 +179,7 @@ namespace FormsByAir.SDK
             }
 
             var response = client.Execute<DocumentResponse>(request);
-           
+
             if (response.ErrorException != null)
             {
                 throw new Exception(response.ErrorException.Message);
